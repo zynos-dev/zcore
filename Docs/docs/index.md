@@ -1,0 +1,101 @@
+# zcore Documentation
+
+`zcore` is the foundational C++ library for Zynos Software products.
+
+Core goals:
+- explicit ownership and fallibility contracts
+- allocator-aware APIs with no hidden allocation
+- deterministic behavior for runtime-critical systems
+- stable cross-project type and ABI boundaries
+
+Implemented core fallibility types:
+- Runtime CPU feature detection (`CpuFeatures`)
+- Foundation aliases (`u8/i8/...`, `usize/isize`, `Byte`)
+- `Duration`
+- `Instant`
+- `Timestamp`
+- `SequenceNumber`
+- `Clock`
+- `ThreadId`
+- `Thread`
+- `ThreadLocal<T, TagT>`
+- `ThreadBound<T>`
+- `Synchronized<T>`
+- `SpscRingBuffer<T, CapacityV>`
+- `MpscRingBuffer<T, CapacityV>`
+- `Atomic<T>`
+- `Mutex`
+- `RwLock`
+- `SpinLock`
+- `ConditionVariable`
+- Deterministic hash API (`zcore::hash`)
+- `Flags<EnumT>`
+- `Array<T, N>`
+- `InlineStorage<T, N>`
+- `InlineBuffer<N>`
+- `FixedBitSet<N>`
+- `FixedVector<T, N>`
+- `Vector<T>`
+- `Deque<T>`
+- `BTreeMap<K, V>`
+- `BTreeSet<T>`
+- `HashMap<K, V>`
+- `HashSet<T>`
+- `FixedString<N>`
+- `String`
+- `StringView`
+- UTF-8 utilities (`zcore::utf8`)
+- Endian utilities (`zcore::endian`)
+- `ByteBuffer`
+- `BufferedReader`
+- `BufferedWriter`
+- `Reader` / `Writer` / `Seeker` (+ `IoErrorCode`)
+- `StrongTypedef<TagT, ValueT, InvalidV>`
+- `Id<TagT>`
+- `Handle<TagT, IndexT, GenerationT>`
+- `TypeId`
+- `TypeInfo`
+- `Version`
+- `AbiVersion`
+- `InterfaceId`
+- `PluginDescriptor`
+- `LoadResult`
+- `Vec2`
+- `Vec3`
+- `Vec4`
+- `Mat3`
+- `Mat4`
+- `Quat`
+- `Aabb2`
+- `Aabb3`
+- `Transform3`
+- `Allocator`
+- `Arena`
+- `Owned<T>`
+- `Shared<T>`
+- `Borrow<T>`
+- `BorrowMut<T>`
+- `NonNull<T>`
+- `Slice<T>` / `SliceMut<T>` (+ `ByteSpan` aliases)
+- `Option<T>`
+- `Result<T, E>`
+- `Status` (`Result<void, Error>`)
+- `ErrorInfo` (`Error` compatibility alias)
+- `ExtensionPolicy`
+- `ErrorHandler` (explicit callback reporting for recoverable errors)
+- `LogLevel`
+- `LogSink`
+- `TraceEvent`
+- `TraceSink`
+- `ScopeGuard`
+- `Defer`
+- `Function`
+- `Any`
+
+See:
+- `doxygen.md` for generated API reference workflow
+- [Doxygen API Reference](api/doxygen/index.html)
+- `contracts.md` for hard API rules
+- `failure-flow.md` for recovery-vs-fatal guidance
+- `migration/string_utf8_semantics.md` for UTF-8 string semantic changes and compatibility API mapping
+- `roadmap.md` for implementation sequencing

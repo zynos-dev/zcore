@@ -1,0 +1,31 @@
+# IDE
+.idea/
+
+
+# CMake
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+# Build output
+artifacts/
+out/
+bin/
+obj/
+*.obj
+*.o
+
+
+log/
+
+
+# OS
+.DS_Store
+Thumbs.db
+
+Docs/Temp
+site/
+.venv/
+Docs/docs/api/doxygen/
+temp

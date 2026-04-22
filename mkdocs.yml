@@ -1,0 +1,168 @@
+site_name: zcore
+site_description: ZCore systems foundation documentation
+site_url: https://example.com/zcore
+repo_url: https://github.com/zynossoftware/zcore
+repo_name: zynossoftware/zcore
+docs_dir: Docs/docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+
+plugins:
+  - search
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+  - javascripts/mermaid-init.js
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Overview: index.md
+  - Doxygen API: doxygen.md
+  - Contracts: contracts.md
+  - Include Policy: include-policy.md
+  - Failure Flow: failure-flow.md
+  - Migration:
+    - String UTF-8 Semantics: migration/string_utf8_semantics.md
+  - Types:
+    - CpuFeatures: types/cpu_features.md
+    - Intrinsics: types/intrinsics.md
+    - Foundation: types/foundation.md
+    - Duration: types/duration.md
+    - Instant: types/instant.md
+    - Timestamp: types/timestamp.md
+    - SequenceNumber: types/sequence_number.md
+    - Clock: types/clock.md
+    - ThreadId: types/thread_id.md
+    - Thread: types/thread.md
+    - ThreadLocal: types/thread_local.md
+    - ThreadBound: types/thread_bound.md
+    - Synchronized: types/synchronized.md
+    - SpscRingBuffer: types/spsc_ring_buffer.md
+    - MpscRingBuffer: types/mpsc_ring_buffer.md
+    - Atomic: types/atomic.md
+    - Mutex: types/mutex.md
+    - RwLock: types/rw_lock.md
+    - SpinLock: types/spin_lock.md
+    - ConditionVariable: types/condition_variable.md
+    - Hash: types/hash.md
+    - Flags: types/flags.md
+    - Array: types/array.md
+    - InlineStorage: types/inline_storage.md
+    - InlineBuffer: types/inline_buffer.md
+    - FixedBitSet: types/fixed_bit_set.md
+    - FixedVector: types/fixed_vector.md
+    - Vector: types/vector.md
+    - Deque: types/deque.md
+    - BTreeMap: types/btree_map.md
+    - BTreeSet: types/btree_set.md
+    - HashMap: types/hash_map.md
+    - HashSet: types/hash_set.md
+    - FixedString: types/fixed_string.md
+    - String: types/string.md
+    - StringView: types/string_view.md
+    - Utf8: types/utf8.md
+    - Endian: types/endian.md
+    - ByteBuffer: types/byte_buffer.md
+    - BufferedReader: types/buffered_reader.md
+    - BufferedWriter: types/buffered_writer.md
+    - IO Interfaces: types/io_interfaces.md
+    - StrongTypedef: types/strong_typedef.md
+    - Id: types/id.md
+    - Handle: types/handle.md
+    - TypeId: types/type_id.md
+    - TypeInfo: types/type_info.md
+    - Version: types/version.md
+    - AbiVersion: types/abi_version.md
+    - InterfaceId: types/interface_id.md
+    - PluginDescriptor: types/plugin_descriptor.md
+    - LoadResult: types/load_result.md
+    - Vec2: types/vec2.md
+    - Vec3: types/vec3.md
+    - Vec4: types/vec4.md
+    - Mat3: types/mat3.md
+    - Mat4: types/mat4.md
+    - Quat: types/quat.md
+    - Aabb2: types/aabb2.md
+    - Aabb3: types/aabb3.md
+    - Transform3: types/transform3.md
+    - Allocator: types/allocator.md
+    - Arena: types/arena.md
+    - Owned: types/owned.md
+    - Shared: types/shared.md
+    - Borrow: types/borrow.md
+    - BorrowMut: types/borrow_mut.md
+    - NonNull: types/non_null.md
+    - Slice: types/slice.md
+    - Option: types/option.md
+    - ErrorInfo: types/error_info.md
+    - ExtensionPolicy: types/extension_policy.md
+    - Error: types/error.md
+    - ErrorHandler: types/error_handler.md
+    - LogLevel: types/log_level.md
+    - LogSink: types/log_sink.md
+    - TraceEvent: types/trace_event.md
+    - TraceSink: types/trace_sink.md
+    - ScopeGuard: types/scope_guard.md
+    - Defer: types/defer.md
+    - Function: types/function.md
+    - Any: types/any.md
+    - Result: types/result.md
+    - Status: types/status.md
+  - Roadmap: roadmap.md

@@ -1,0 +1,69 @@
+# Modern, readability-first C++ style.
+# Wide columns + reduced packing keep code open and easy to scan on modern displays.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Layout
+ColumnLimit: 132
+IndentWidth: 4
+ContinuationIndentWidth: 8
+PPIndentWidth: 2
+UseTab: Never
+AccessModifierOffset: -4
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+IndentPPDirectives: BeforeHash
+
+# Braces / control flow
+BreakBeforeBraces: Stroustrup
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: false
+
+# Keep arguments/parameters readable instead of packed
+BinPackArguments: false
+BinPackParameters: false
+PackConstructorInitializers: NextLine
+ConstructorInitializerIndentWidth: 8
+BreakConstructorInitializers: BeforeComma
+
+# Wrapping / alignment
+AlignAfterOpenBracket: Align
+AlignOperands: Align
+AlignTrailingComments: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakTemplateDeclarations: Yes
+PenaltyBreakBeforeFirstCallParameter: 1000
+PenaltyExcessCharacter: 1000000
+
+# Includes
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeIsMainRegex: '([-_](test|unittest))?$'
+IncludeIsMainSourceRegex: '(cc|cp|cxx|cpp|c\+\+|mm|m)$'
+IncludeCategories:
+  - Regex: '^"zcore/'
+    Priority: 1
+    SortPriority: 0
+    CaseSensitive: false
+  - Regex: '^"'
+    Priority: 2
+    SortPriority: 0
+    CaseSensitive: false
+  - Regex: '^<'
+    Priority: 3
+    SortPriority: 0
+    CaseSensitive: false
+
+# Pointers / references
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceAfterCStyleCast: true
+
+# Keep intentional comment wrapping/manual formatting
+ReflowComments: false
+...

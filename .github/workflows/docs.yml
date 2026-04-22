@@ -1,0 +1,54 @@
+name: docs
+
+on:
+  push:
+    paths:
+      - "CMakeLists.txt"
+      - "Docs/**"
+      - "README.md"
+      - "include/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "Docs/**"
+      - "README.md"
+      - "include/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+jobs:
+  doxygen:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install doc toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz ninja-build
+
+      - name: Configure docs build
+        run: >
+          cmake -S . -B build-docs -G Ninja
+          -DZCORE_BUILD_DOCS=ON
+          -DZCORE_BUILD_TESTS=OFF
+
+      - name: Build Doxygen docs
+        run: cmake --build build-docs --target zcore_docs
+
+      - name: Upload Doxygen HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcore-doxygen-html
+          path: build-docs/docs/doxygen/html
+          if-no-files-found: error
+
+      - name: Upload Doxygen warnings artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcore-doxygen-warnings
+          path: build-docs/docs/doxygen/doxygen-warnings.log
+          if-no-files-found: warn

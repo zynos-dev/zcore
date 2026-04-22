@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  push:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "thirdparty/**"
+      - "tests/**"
+      - ".clang-tidy"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "thirdparty/**"
+      - "tests/**"
+      - ".clang-tidy"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_test:
+    name: Build + Test (Ubuntu/GCC)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DZCORE_BUILD_TESTS=ON
+          -DZCORE_BUILD_BENCHMARKS=OFF
+          -DZCORE_BUILD_DOCS=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  clang_tidy:
+    name: Clang-Tidy (Ubuntu/Clang)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang clang-tidy
+
+      - name: Configure (clang-tidy enabled)
+        run: >
+          cmake -S . -B build-tidy -G Ninja
+          -DCMAKE_CXX_COMPILER=clang++
+          "-DCMAKE_CXX_CLANG_TIDY=clang-tidy;-warnings-as-errors=*"
+          -DZCORE_BUILD_TESTS=ON
+          -DZCORE_BUILD_BENCHMARKS=OFF
+          -DZCORE_BUILD_DOCS=OFF
+
+      - name: Build (runs clang-tidy)
+        run: cmake --build build-tidy --target zcore_tests --parallel
