@@ -141,10 +141,13 @@ namespace detail {
     regs[2] = static_cast<std::uint32_t>(out[2]);
     regs[3] = static_cast<std::uint32_t>(out[3]);
   #else
+    // Required mutable output operands for __cpuid_count.
+    // NOLINTBEGIN(misc-const-correctness)
     std::uint32_t eax = 0;
     std::uint32_t ebx = 0;
     std::uint32_t ecx = 0;
     std::uint32_t edx = 0;
+    // NOLINTEND(misc-const-correctness)
     __cpuid_count(leaf, subleaf, eax, ebx, ecx, edx);
     regs[0] = eax;
     regs[1] = ebx;
@@ -159,8 +162,11 @@ namespace detail {
   #if defined(_MSC_VER)
     return static_cast<std::uint64_t>(_xgetbv(0));
   #elif defined(__GNUC__) || defined(__clang__)
+    // Required mutable output operands for xgetbv inline assembly.
+    // NOLINTBEGIN(misc-const-correctness)
     std::uint32_t eax = 0;
     std::uint32_t edx = 0;
+    // NOLINTEND(misc-const-correctness)
     __asm__ volatile("xgetbv" : "=a"(eax), "=d"(edx) : "c"(0));
     return (static_cast<std::uint64_t>(edx) << 32U) | eax;
   #else

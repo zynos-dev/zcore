@@ -10,6 +10,14 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+if(CMAKE_CXX_CLANG_TIDY)
+  foreach(_zcore_gtest_target IN ITEMS gtest gtest_main gmock gmock_main)
+    if(TARGET ${_zcore_gtest_target})
+      set_target_properties(${_zcore_gtest_target} PROPERTIES CXX_CLANG_TIDY "")
+    endif()
+  endforeach()
+endif()
+
 set(
   ZCORE_TEST_SOURCES
   cpu_features_test.cpp
