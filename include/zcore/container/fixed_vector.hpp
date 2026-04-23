@@ -59,7 +59,10 @@ public:
     static constexpr usize kCapacity = CapacityV;
 
     /// @brief Constructs an empty fixed vector.
-    constexpr FixedVector() noexcept = default;
+    // NOLINTNEXTLINE(modernize-use-equals-default): must be user-provided to allow const default-initialization.
+    constexpr FixedVector() noexcept
+    {
+    }
 
     constexpr FixedVector(const FixedVector& other)
         requires(std::is_copy_constructible_v<ValueT>)
