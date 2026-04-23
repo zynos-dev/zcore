@@ -114,8 +114,9 @@ template <EndianValue ValueT>
  * @brief Alias for `ToLittleEndian`.
  */
 template <EndianValue ValueT>
+// NOLINTNEXTLINE(readability-identifier-naming): snake_case aliases intentionally mirror conventional endian shorthand.
 [[nodiscard]] constexpr ValueT to_le(ValueT value) noexcept
-{ // NOLINT(readability-identifier-naming)
+{
     return ToLittleEndian(value);
 }
 
@@ -123,8 +124,9 @@ template <EndianValue ValueT>
  * @brief Alias for `FromLittleEndian`.
  */
 template <EndianValue ValueT>
+// NOLINTNEXTLINE(readability-identifier-naming): snake_case aliases intentionally mirror conventional endian shorthand.
 [[nodiscard]] constexpr ValueT from_le(ValueT value) noexcept
-{ // NOLINT(readability-identifier-naming)
+{
     return FromLittleEndian(value);
 }
 
@@ -132,8 +134,9 @@ template <EndianValue ValueT>
  * @brief Alias for `ToBigEndian`.
  */
 template <EndianValue ValueT>
+// NOLINTNEXTLINE(readability-identifier-naming): snake_case aliases intentionally mirror conventional endian shorthand.
 [[nodiscard]] constexpr ValueT to_be(ValueT value) noexcept
-{ // NOLINT(readability-identifier-naming)
+{
     return ToBigEndian(value);
 }
 
@@ -141,8 +144,9 @@ template <EndianValue ValueT>
  * @brief Alias for `FromBigEndian`.
  */
 template <EndianValue ValueT>
+// NOLINTNEXTLINE(readability-identifier-naming): snake_case aliases intentionally mirror conventional endian shorthand.
 [[nodiscard]] constexpr ValueT from_be(ValueT value) noexcept
-{ // NOLINT(readability-identifier-naming)
+{
     return FromBigEndian(value);
 }
 
