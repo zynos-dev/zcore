@@ -59,20 +59,16 @@ public:
     static constexpr usize kCapacity = CapacityV;
 
     /// @brief Constructs an empty fixed vector.
-    constexpr FixedVector() noexcept : Size_(0)
-    {
-    }
+    constexpr FixedVector() noexcept = default;
 
     constexpr FixedVector(const FixedVector& other)
         requires(std::is_copy_constructible_v<ValueT>)
-            : Size_(0)
     {
         CopyFrom(other);
     }
 
     constexpr FixedVector(FixedVector&& other) noexcept(std::is_nothrow_move_constructible_v<ValueT>)
         requires(std::is_move_constructible_v<ValueT>)
-            : Size_(0)
     {
         MoveFrom(std::move(other));
     }
@@ -499,7 +495,7 @@ private:
     }
 
     alignas(ValueT) std::byte Storage_[sizeof(ValueT) * kStorageCount];
-    usize Size_;
+    usize Size_{0};
 };
 
 } // namespace zcore

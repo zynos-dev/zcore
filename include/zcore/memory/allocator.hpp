@@ -34,6 +34,7 @@ namespace zcore {
 /**
  * @brief Allocator-domain error codes for allocation interfaces.
  */
+// NOLINTNEXTLINE(performance-enum-size): stable error-code ABI uses i32 payloads.
 enum class AllocatorErrorCode : i32 {
     /// @brief Allocation request failed validation.
     INVALID_REQUEST = 1,
@@ -215,6 +216,11 @@ struct Allocation final {
  */
 class Allocator {
 public:
+    Allocator() = default;
+    Allocator(const Allocator&) = default;
+    Allocator& operator=(const Allocator&) = default;
+    Allocator(Allocator&&) = default;
+    Allocator& operator=(Allocator&&) = default;
     virtual ~Allocator() = default;
 
     /**

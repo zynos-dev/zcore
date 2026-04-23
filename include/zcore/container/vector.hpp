@@ -323,7 +323,7 @@ public:
             return ErrorStatus(allocationResult.Error());
         }
 
-        Allocation nextAllocation = allocationResult.Value();
+        const Allocation nextAllocation = allocationResult.Value();
         ZCORE_CONTRACT_REQUIRE(nextAllocation.IsValid(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::Vector::TryReserve requires allocator to return valid allocation");
@@ -359,7 +359,7 @@ public:
     [[nodiscard]] Status TryPushBack(const ValueT& value)
         requires(std::is_copy_constructible_v<ValueT>)
     {
-        const Status capacityStatus = EnsureCapacityFor(Size_ + 1U);
+        Status capacityStatus = EnsureCapacityFor(Size_ + 1U);
         if (capacityStatus.HasError()) {
             return capacityStatus;
         }
@@ -375,7 +375,7 @@ public:
     [[nodiscard]] Status TryPushBack(ValueT&& value)
         requires(std::is_move_constructible_v<ValueT>)
     {
-        const Status capacityStatus = EnsureCapacityFor(Size_ + 1U);
+        Status capacityStatus = EnsureCapacityFor(Size_ + 1U);
         if (capacityStatus.HasError()) {
             return capacityStatus;
         }
