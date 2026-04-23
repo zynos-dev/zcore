@@ -134,7 +134,7 @@ public:
         if (!slot.has_value()) {
             return nullptr;
         }
-        return &slot.value();
+        return &(*slot);
     }
 
     /// @brief Returns pointer to current thread slot value or `nullptr`.
@@ -144,7 +144,7 @@ public:
         if (!slot.has_value()) {
             return nullptr;
         }
-        return &slot.value();
+        return &(*slot);
     }
 
     /// @brief Returns existing value or emplaces one in current thread slot.
