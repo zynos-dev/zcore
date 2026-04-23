@@ -60,7 +60,7 @@ CheckOptions:
   - key: readability-identifier-naming.MethodCase
     value: CamelCase
   - key: readability-identifier-naming.MethodIgnoredRegexp
-    value: '^(size|empty|data|begin|end|cbegin|cend|rbegin|rend|crbegin|crend|full|c_str)$'
+    value: '^(size|empty|data|begin|end|cbegin|cend|rbegin|rend|crbegin|crend|full|c_str|lock|try_lock|unlock)$'
 
   - key: readability-identifier-naming.VariableCase
     value: camelBack
