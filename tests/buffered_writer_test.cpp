@@ -87,7 +87,7 @@ class MemoryWriter final : public zcore::Writer {
 
   [[nodiscard]] zcore::Result<zcore::usize, zcore::Error> Write(zcore::ByteSpan source) noexcept override {
     ++WriteCalls;
-    if (FailWrite) {
+    if (FailWrite || (FailWriteAfterCalls >= 0 && WriteCalls > FailWriteAfterCalls)) {
       return zcore::Result<zcore::usize, zcore::Error>::Failure(
           zcore::MakeIoError(zcore::IoErrorCode::UNSUPPORTED_OPERATION, "write", "forced failure"));
     }
@@ -119,10 +119,13 @@ class MemoryWriter final : public zcore::Writer {
   }
 
   bool FailWrite = false;
+  int FailWriteAfterCalls = -1;
   bool FailFlush = false;
   bool ReturnZeroOnWrite = false;
   int WriteCalls = 0;
   int FlushCalls = 0;
+
+  [[nodiscard]] zcore::usize BytesWritten() const noexcept { return Cursor_; }
 
  private:
   zcore::ByteSpanMut Destination_;
@@ -270,6 +273,68 @@ TEST(BufferedWriterTest, FlushPropagatesWriteAndFlushErrors) {
   EXPECT_EQ(
       zeroWriteStatus.Error().code.value,
       static_cast<zcore::i32>(zcore::IoErrorCode::END_OF_STREAM));
+}
+
+TEST(BufferedWriterTest, WriteReturnsPartialProgressOnDirectPathBeforeError) {
+  TrackingAllocator allocator;
+  std::array<zcore::Byte, 8U> storage{};
+  MemoryWriter sink{zcore::ByteSpanMut(storage), 2U};
+  sink.FailWriteAfterCalls = 1;
+  zcore::BufferedWriter writer(sink, allocator, 4U);
+
+  const std::array<zcore::Byte, 6U> source{
+      static_cast<zcore::Byte>(0x60U),
+      static_cast<zcore::Byte>(0x61U),
+      static_cast<zcore::Byte>(0x62U),
+      static_cast<zcore::Byte>(0x63U),
+      static_cast<zcore::Byte>(0x64U),
+      static_cast<zcore::Byte>(0x65U),
+  };
+  auto writeResult = writer.Write(zcore::ByteSpan(source));
+  ASSERT_TRUE(writeResult.HasValue());
+  EXPECT_EQ(writeResult.Value(), 2U);
+  EXPECT_EQ(sink.BytesWritten(), 2U);
+  EXPECT_EQ(ByteValue(storage[0]), 0x60U);
+  EXPECT_EQ(ByteValue(storage[1]), 0x61U);
+}
+
+TEST(BufferedWriterTest, FlushDoesNotDuplicatePrefixAfterPartialProgressError) {
+  TrackingAllocator allocator;
+  std::array<zcore::Byte, 16U> storage{};
+  MemoryWriter sink{zcore::ByteSpanMut(storage), 2U};
+  zcore::BufferedWriter writer(sink, allocator, 4U);
+
+  const std::array<zcore::Byte, 3U> first{
+      static_cast<zcore::Byte>(0x70U),
+      static_cast<zcore::Byte>(0x71U),
+      static_cast<zcore::Byte>(0x72U),
+  };
+  auto firstWrite = writer.Write(zcore::ByteSpan(first));
+  ASSERT_TRUE(firstWrite.HasValue());
+  EXPECT_EQ(firstWrite.Value(), 3U);
+  EXPECT_EQ(writer.BufferedSize(), 3U);
+
+  sink.FailWriteAfterCalls = 1;
+  const std::array<zcore::Byte, 3U> second{
+      static_cast<zcore::Byte>(0x73U),
+      static_cast<zcore::Byte>(0x74U),
+      static_cast<zcore::Byte>(0x75U),
+  };
+  auto secondWrite = writer.Write(zcore::ByteSpan(second));
+  ASSERT_TRUE(secondWrite.HasValue());
+  EXPECT_EQ(secondWrite.Value(), 1U);
+  EXPECT_EQ(writer.BufferedSize(), 2U);
+  EXPECT_EQ(sink.BytesWritten(), 2U);
+  EXPECT_EQ(ByteValue(storage[0]), 0x70U);
+  EXPECT_EQ(ByteValue(storage[1]), 0x71U);
+
+  sink.FailWriteAfterCalls = -1;
+  const zcore::Status flushStatus = writer.Flush();
+  ASSERT_TRUE(flushStatus.HasValue());
+  EXPECT_EQ(writer.BufferedSize(), 0U);
+  EXPECT_EQ(sink.BytesWritten(), 4U);
+  EXPECT_EQ(ByteValue(storage[2]), 0x72U);
+  EXPECT_EQ(ByteValue(storage[3]), 0x73U);
 }
 
 }  // namespace

@@ -95,6 +95,9 @@ public:
                     const ByteSpanMut direct = ByteSpanMut::FromRawUnchecked(destination.Data() + totalRead, remaining);
                     auto directResult = Source_->Read(direct);
                     if (directResult.HasError()) {
+                        if (totalRead > 0U) {
+                            return Result<usize, Error>::Success(totalRead);
+                        }
                         return Result<usize, Error>::Failure(directResult.Error());
                     }
                     totalRead += directResult.Value();
@@ -106,6 +109,9 @@ public:
 
                 auto refillResult = Refill();
                 if (refillResult.HasError()) {
+                    if (totalRead > 0U) {
+                        return Result<usize, Error>::Success(totalRead);
+                    }
                     return Result<usize, Error>::Failure(refillResult.Error());
                 }
                 if (refillResult.Value() == 0U) {

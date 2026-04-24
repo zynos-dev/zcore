@@ -8,6 +8,7 @@
 
 - Dynamic storage is allocated only through the bound `Allocator`.
 - `Write(ByteSpan)` returns bytes accepted from source or propagated upstream/allocator error.
+- When upstream failure occurs after some bytes were accepted in the same call, `Write` returns the accepted byte count and defers error reporting to a later call.
 - `Flush()` first drains buffered bytes to upstream, then delegates upstream `Flush()`.
 - `capacity = 0` disables buffering and forwards writes directly to upstream `Writer`.
 - Zero-byte upstream progress during flush is treated as `IoErrorCode::END_OF_STREAM`.
@@ -36,6 +37,7 @@ writer.Flush();
 
 - Data may remain buffered until `Flush()` or buffer-full auto-drain path.
 - Upstream partial writes are retried during flush until complete or error.
+- If a flush error occurs after partial upstream progress, already-flushed prefix bytes are consumed and not retried.
 
 ## Thread-Safety and Ownership Notes
 
