@@ -1,0 +1,244 @@
+name: ci-platforms
+
+on:
+  push:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "thirdparty/**"
+      - "tests/**"
+      - ".clang-tidy"
+      - ".github/scripts/select_ci_scope.py"
+      - ".github/workflows/ci-platforms.yml"
+      - ".github/workflows/ci-analysis.yml"
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "thirdparty/**"
+      - "tests/**"
+      - ".clang-tidy"
+      - ".github/scripts/select_ci_scope.py"
+      - ".github/workflows/ci-platforms.yml"
+      - ".github/workflows/ci-analysis.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-platforms-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Plan CI Scope
+    runs-on: ubuntu-latest
+    outputs:
+      build_required: ${{ steps.scope.outputs.build_required }}
+      run_all_tests: ${{ steps.scope.outputs.run_all_tests }}
+      ctest_regex: ${{ steps.scope.outputs.ctest_regex }}
+      reason: ${{ steps.scope.outputs.reason }}
+      impacted_test_files: ${{ steps.scope.outputs.impacted_test_files }}
+      impacted_suite_count: ${{ steps.scope.outputs.impacted_suite_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve diff range
+        id: revs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+              echo "base=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
+            else
+              echo "base=" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/select_ci_scope.py \
+            --base "${{ steps.revs.outputs.base }}" \
+            --head "${{ steps.revs.outputs.head }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Print scope summary
+        shell: bash
+        run: |
+          echo "build_required=${{ steps.scope.outputs.build_required }}"
+          echo "run_all_tests=${{ steps.scope.outputs.run_all_tests }}"
+          echo "ctest_regex=${{ steps.scope.outputs.ctest_regex }}"
+          echo "reason=${{ steps.scope.outputs.reason }}"
+          echo "impacted_suite_count=${{ steps.scope.outputs.impacted_suite_count }}"
+
+  build_and_test:
+    name: Build + Test (${{ matrix.platform }} / ${{ matrix.compiler }})
+    needs: plan
+    if: needs.plan.outputs.build_required == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu
+            runner: ubuntu-latest
+            compiler: gcc
+            c_compiler: gcc
+            cxx_compiler: g++
+            use_ccache: true
+          - platform: ubuntu
+            runner: ubuntu-latest
+            compiler: clang
+            c_compiler: clang
+            cxx_compiler: clang++
+            use_ccache: true
+          - platform: macos
+            runner: macos-14
+            compiler: apple-clang
+            c_compiler: clang
+            cxx_compiler: clang++
+            use_ccache: true
+          - platform: windows
+            runner: windows-2022
+            compiler: msvc
+            c_compiler: ""
+            cxx_compiler: ""
+            use_ccache: false
+          - platform: windows
+            runner: windows-2022
+            compiler: clang-cl
+            c_compiler: clang-cl
+            cxx_compiler: clang-cl
+            use_ccache: false
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ci-cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPRESS: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Linux toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ccache
+
+      - name: Install macOS toolchain
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ninja ccache
+
+      - name: Install Windows toolchain
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install ninja --yes --no-progress
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/fetchcontent
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ runner.os }}-
+
+      - name: Cache ccache
+        if: matrix.use_ccache
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/ccache
+          key: ccache-${{ runner.os }}-${{ matrix.compiler }}-v1
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ matrix.compiler }}-
+
+      - name: Configure ccache
+        if: matrix.use_ccache
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-cache/ccache
+          ccache --max-size=1G
+          ccache --zero-stats || true
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake_args=(
+            -S .
+            -B build
+            -G Ninja
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            -DFETCHCONTENT_BASE_DIR=.ci-cache/fetchcontent
+            -DZCORE_BUILD_TESTS=ON
+            -DZCORE_BUILD_BENCHMARKS=OFF
+            -DZCORE_BUILD_DOCS=OFF
+          )
+          if [[ -n "${{ matrix.c_compiler }}" ]]; then
+            cmake_args+=(-DCMAKE_C_COMPILER=${{ matrix.c_compiler }})
+          fi
+          if [[ -n "${{ matrix.cxx_compiler }}" ]]; then
+            cmake_args+=(-DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }})
+          fi
+          if [[ "${{ matrix.use_ccache }}" == "true" ]]; then
+            cmake_args+=(
+              -DCMAKE_C_COMPILER_LAUNCHER=ccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            )
+          fi
+          cmake "${cmake_args[@]}"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.plan.outputs.run_all_tests }}" == "true" ]]; then
+            ctest --test-dir build --output-on-failure
+          elif [[ -n "${{ needs.plan.outputs.ctest_regex }}" ]]; then
+            echo "Running targeted tests: ${{ needs.plan.outputs.ctest_regex }}"
+            ctest --test-dir build --output-on-failure --no-tests=ignore --tests-regex "${{ needs.plan.outputs.ctest_regex }}"
+          else
+            echo "No impacted tests detected; skipping test execution."
+          fi
+
+      - name: ccache stats
+        if: matrix.use_ccache
+        shell: bash
+        run: ccache --show-stats
+
+  no_relevant_changes:
+    name: No Relevant Changes
+    needs: plan
+    if: needs.plan.outputs.build_required != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip message
+        run: |
+          echo "Skipping matrix build/test."
+          echo "Reason: ${{ needs.plan.outputs.reason }}"

@@ -1,0 +1,216 @@
+name: ci-analysis
+
+on:
+  push:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "thirdparty/**"
+      - "tests/**"
+      - ".clang-tidy"
+      - ".github/scripts/select_ci_scope.py"
+      - ".github/workflows/ci-platforms.yml"
+      - ".github/workflows/ci-analysis.yml"
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "thirdparty/**"
+      - "tests/**"
+      - ".clang-tidy"
+      - ".github/scripts/select_ci_scope.py"
+      - ".github/workflows/ci-platforms.yml"
+      - ".github/workflows/ci-analysis.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Plan CI Scope
+    runs-on: ubuntu-latest
+    outputs:
+      build_required: ${{ steps.scope.outputs.build_required }}
+      run_all_tests: ${{ steps.scope.outputs.run_all_tests }}
+      ctest_regex: ${{ steps.scope.outputs.ctest_regex }}
+      reason: ${{ steps.scope.outputs.reason }}
+      impacted_test_files: ${{ steps.scope.outputs.impacted_test_files }}
+      impacted_suite_count: ${{ steps.scope.outputs.impacted_suite_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve diff range
+        id: revs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+              echo "base=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
+            else
+              echo "base=" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/select_ci_scope.py \
+            --base "${{ steps.revs.outputs.base }}" \
+            --head "${{ steps.revs.outputs.head }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+  sanitizers:
+    name: Sanitizers (Ubuntu / Clang ASan+UBSan)
+    needs: plan
+    if: needs.plan.outputs.build_required == 'true'
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ci-cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPRESS: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install sanitizer toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang ccache
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/fetchcontent
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ runner.os }}-
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/ccache
+          key: ccache-${{ runner.os }}-clang-sanitize-v1
+          restore-keys: |
+            ccache-${{ runner.os }}-clang-sanitize-
+
+      - name: Configure ccache
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-cache/ccache
+          ccache --max-size=1G
+          ccache --zero-stats || true
+
+      - name: Configure (sanitizers enabled)
+        run: >
+          cmake -S . -B build-sanitize -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined"
+          -DFETCHCONTENT_BASE_DIR=.ci-cache/fetchcontent
+          -DZCORE_BUILD_TESTS=ON
+          -DZCORE_BUILD_BENCHMARKS=OFF
+          -DZCORE_BUILD_DOCS=OFF
+
+      - name: Build
+        run: cmake --build build-sanitize --parallel
+
+      - name: Run tests
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.plan.outputs.run_all_tests }}" == "true" ]]; then
+            ctest --test-dir build-sanitize --output-on-failure
+          elif [[ -n "${{ needs.plan.outputs.ctest_regex }}" ]]; then
+            echo "Running targeted tests: ${{ needs.plan.outputs.ctest_regex }}"
+            ctest --test-dir build-sanitize --output-on-failure --no-tests=ignore --tests-regex "${{ needs.plan.outputs.ctest_regex }}"
+          else
+            echo "No impacted tests detected; skipping test execution."
+          fi
+
+      - name: ccache stats
+        shell: bash
+        run: ccache --show-stats
+
+  clang_tidy:
+    name: Clang-Tidy (Ubuntu / Clang changed scope)
+    needs: plan
+    if: needs.plan.outputs.build_required == 'true' && needs.plan.outputs.impacted_test_files != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install clang-tidy toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang clang-tidy
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/fetchcontent
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ runner.os }}-
+
+      - name: Configure compilation database
+        run: >
+          cmake -S . -B build-tidy -G Ninja
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DFETCHCONTENT_BASE_DIR=.ci-cache/fetchcontent
+          -DZCORE_BUILD_TESTS=ON
+          -DZCORE_BUILD_BENCHMARKS=OFF
+          -DZCORE_BUILD_DOCS=OFF
+
+      - name: Run clang-tidy on impacted test sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t test_files < <(printf '%s\n' "${{ needs.plan.outputs.impacted_test_files }}" | sed '/^$/d')
+          if [[ ${#test_files[@]} -eq 0 ]]; then
+            echo "No impacted test files detected; skipping clang-tidy."
+            exit 0
+          fi
+          clang-tidy -p build-tidy --warnings-as-errors=* "${test_files[@]}"
+
+  no_relevant_changes:
+    name: No Relevant Changes
+    needs: plan
+    if: needs.plan.outputs.build_required != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip message
+        run: |
+          echo "Skipping sanitizer/clang-tidy."
+          echo "Reason: ${{ needs.plan.outputs.reason }}"
