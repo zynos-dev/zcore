@@ -93,7 +93,7 @@ public:
             return Result<Owned, Error>::Failure(allocationResult.Error());
         }
 
-        Allocation allocation = allocationResult.Value();
+        const Allocation allocation = allocationResult.Value();
         ZCORE_CONTRACT_REQUIRE(allocation.IsValid(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::Owned::TryMake requires allocator to return valid allocation");
@@ -190,7 +190,7 @@ public:
         ValueT* const valuePtr = Get();
         std::destroy_at(valuePtr);
 
-        Status deallocateStatus = Allocator_->Deallocate(Allocation_);
+        const Status deallocateStatus = Allocator_->Deallocate(Allocation_);
         ZCORE_CONTRACT_REQUIRE(deallocateStatus.HasValue(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::Owned requires allocator deallocation success for owned allocations");

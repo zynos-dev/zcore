@@ -28,6 +28,7 @@ namespace zcore {
 /**
  * @brief I/O-domain error codes.
  */
+// NOLINTNEXTLINE(performance-enum-size): stable error-code ABI uses i32 payloads.
 enum class IoErrorCode : i32 {
     /// @brief Input argument is invalid.
     INVALID_ARGUMENT = 1,

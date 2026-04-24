@@ -107,10 +107,11 @@ public:
    */
     [[nodiscard]] ValueT& Value()
     {
-        ZCORE_CONTRACT_REQUIRE(HasValue(),
+        std::optional<ValueT>& slot = Slot();
+        ZCORE_CONTRACT_REQUIRE(slot.has_value(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::ThreadLocal::Value() requires value in current thread slot");
-        return *Slot();
+        return slot.value();
     }
 
     /**
@@ -119,38 +120,42 @@ public:
    */
     [[nodiscard]] const ValueT& Value() const
     {
-        ZCORE_CONTRACT_REQUIRE(HasValue(),
+        const std::optional<ValueT>& slot = Slot();
+        ZCORE_CONTRACT_REQUIRE(slot.has_value(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::ThreadLocal::Value() requires value in current thread slot");
-        return *Slot();
+        return slot.value();
     }
 
     /// @brief Returns pointer to current thread slot value or `nullptr`.
     [[nodiscard]] ValueT* TryValue() noexcept
     {
-        if (!HasValue()) {
+        std::optional<ValueT>& slot = Slot();
+        if (!slot.has_value()) {
             return nullptr;
         }
-        return &(*Slot());
+        return &(*slot);
     }
 
     /// @brief Returns pointer to current thread slot value or `nullptr`.
     [[nodiscard]] const ValueT* TryValue() const noexcept
     {
-        if (!HasValue()) {
+        const std::optional<ValueT>& slot = Slot();
+        if (!slot.has_value()) {
             return nullptr;
         }
-        return &(*Slot());
+        return &(*slot);
     }
 
     /// @brief Returns existing value or emplaces one in current thread slot.
     template <typename... ArgsT>
     ValueT& ValueOrEmplace(ArgsT&&... args)
     {
-        if (HasValue()) {
-            return *Slot();
+        std::optional<ValueT>& slot = Slot();
+        if (slot.has_value()) {
+            return slot.value();
         }
-        return Emplace(std::forward<ArgsT>(args)...);
+        return slot.emplace(std::forward<ArgsT>(args)...);
     }
 
 private:

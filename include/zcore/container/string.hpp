@@ -37,6 +37,7 @@ namespace zcore {
 /**
  * @brief String-domain error codes for allocator-backed UTF-8 string APIs.
  */
+// NOLINTNEXTLINE(performance-enum-size): stable error-code ABI uses i32 payloads.
 enum class StringErrorCode : i32 {
     /// @brief Input pointer/range argument is invalid.
     INVALID_ARGUMENT = 1,
@@ -359,7 +360,7 @@ public:
         if (capacity <= Capacity()) {
             return OkStatus();
         }
-        const Status reserveStatus = Bytes_.TryReserve(capacity + 1U);
+        Status reserveStatus = Bytes_.TryReserve(capacity + 1U);
         if (reserveStatus.HasError()) {
             return reserveStatus;
         }

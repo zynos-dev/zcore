@@ -48,8 +48,8 @@ static_assert(std::is_trivially_copyable_v<zcore::NonNull<int>>);
 
 TEST(NonNullTest, ConstructsFromPointerAndReference) {
   Widget widget{.value = 7};
-  zcore::NonNull<Widget> fromPointer(&widget);
-  zcore::NonNull<Widget> fromReference(widget);
+  const zcore::NonNull<Widget> fromPointer(&widget);
+  const zcore::NonNull<Widget> fromReference(widget);
 
   EXPECT_EQ(fromPointer.Get(), &widget);
   EXPECT_EQ(fromReference.Get(), &widget);
@@ -59,7 +59,7 @@ TEST(NonNullTest, ConstructsFromPointerAndReference) {
 
 TEST(NonNullTest, SupportsVoidPointers) {
   int value = 11;
-  zcore::NonNull<void> ptr(static_cast<void*>(&value));
+  const zcore::NonNull<void> ptr(static_cast<void*>(&value));
 
   EXPECT_EQ(ptr.Get(), static_cast<void*>(&value));
   EXPECT_NE(ptr.Address(), 0U);
@@ -67,9 +67,9 @@ TEST(NonNullTest, SupportsVoidPointers) {
 
 TEST(NonNullTest, SupportsCovariantConstruction) {
   Widget widget{.value = 3};  // NOLINT(misc-const-correctness)
-  zcore::NonNull<Widget> mutablePtr(&widget);
+  const zcore::NonNull<Widget> mutablePtr(&widget);
   widget.value = 4;
-  zcore::NonNull<const Widget> constPtr(mutablePtr);
+  const zcore::NonNull<const Widget> constPtr(mutablePtr);
 
   EXPECT_EQ(constPtr->Read(), 4);
 }
@@ -78,19 +78,19 @@ TEST(NonNullTest, StaticCastAndReinterpretCastAreExplicit) {
   Derived derived{};
   derived.value = 19;
   derived.extra = 2;
-  zcore::NonNull<Derived> derivedPtr(&derived);
+  const zcore::NonNull<Derived> derivedPtr(&derived);
 
-  zcore::NonNull<Base> basePtr = derivedPtr.StaticCast<Base>();
+  const zcore::NonNull<Base> basePtr = derivedPtr.StaticCast<Base>();
   EXPECT_EQ(basePtr->value, 19);
 
-  zcore::NonNull<std::byte> bytes = derivedPtr.ReinterpretCast<std::byte>();
+  const zcore::NonNull<std::byte> bytes = derivedPtr.ReinterpretCast<std::byte>();
   EXPECT_EQ(bytes.Address(), derivedPtr.Address());
 }
 
 TEST(NonNullTest, ConstCastRemovesConstQualifierExplicitly) {
   Widget widget{.value = 21};  // NOLINT(misc-const-correctness)
-  zcore::NonNull<const Widget> constPtr(&widget);
-  zcore::NonNull<Widget> mutablePtr = constPtr.ConstCast();
+  const zcore::NonNull<const Widget> constPtr(&widget);
+  const zcore::NonNull<Widget> mutablePtr = constPtr.ConstCast();
 
   mutablePtr->value = 22;
   EXPECT_EQ(widget.value, 22);

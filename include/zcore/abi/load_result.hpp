@@ -32,6 +32,7 @@ namespace zcore {
 /**
  * @brief Plugin-load error codes.
  */
+// NOLINTNEXTLINE(performance-enum-size): stable error-code ABI uses i32 payloads.
 enum class LoadErrorCode : i32 {
     /// @brief Plugin identity or metadata shape is invalid.
     INVALID_DESCRIPTOR = 1,

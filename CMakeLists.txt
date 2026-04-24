@@ -30,7 +30,12 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(zcore INTERFACE zcore_hash_impl)
+target_link_libraries(
+  zcore
+  INTERFACE
+    zcore_hash_impl
+    $<$<AND:$<PLATFORM_ID:Linux>,$<CXX_COMPILER_ID:Clang>>:atomic>
+)
 
 set(ZCORE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/zcore")
 

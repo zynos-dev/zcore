@@ -34,7 +34,7 @@ namespace detail {
 [[nodiscard]] consteval u64 Fnv1a64(std::string_view text) noexcept
 {
     u64 hash = 0xcbf29ce484222325ULL;
-    for (char value : text) {
+    for (const char value : text) {
         hash ^= static_cast<u64>(static_cast<unsigned char>(value));
         hash *= 0x100000001b3ULL;
     }

@@ -107,7 +107,7 @@ public:
             return Result<Shared, Error>::Failure(allocationResult.Error());
         }
 
-        Allocation allocation = allocationResult.Value();
+        const Allocation allocation = allocationResult.Value();
         ZCORE_CONTRACT_REQUIRE(allocation.IsValid(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::Shared::TryMake requires allocator to return valid allocation");
@@ -281,7 +281,7 @@ private:
         Allocator* const allocator = block->AllocatorRef;
         std::destroy_at(block);
 
-        Status deallocateStatus = allocator->Deallocate(allocation);
+        const Status deallocateStatus = allocator->Deallocate(allocation);
         ZCORE_CONTRACT_REQUIRE(deallocateStatus.HasValue(),
                                detail::ContractViolationCode::PRECONDITION,
                                "zcore::Shared requires allocator deallocation success for shared control block");
