@@ -7,6 +7,7 @@ include(GNUInstallDirs)
 option(ZCORE_BUILD_TESTS "Build zcore unit tests" ON)
 option(ZCORE_BUILD_DOCS "Enable Doxygen API documentation target" OFF)
 option(ZCORE_BUILD_BENCHMARKS "Build zcore microbenchmarks" OFF)
+option(ZCORE_BUILD_FUZZERS "Build local zcore libFuzzer targets" OFF)
 option(ZCORE_USE_DOXYGEN_AWESOME "Use doxygen-awesome-css theme for Doxygen output" ON)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -92,6 +93,10 @@ endif()
 
 if(ZCORE_BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
+endif()
+
+if(ZCORE_BUILD_FUZZERS)
+  add_subdirectory(fuzz)
 endif()
 
 if(ZCORE_BUILD_DOCS)

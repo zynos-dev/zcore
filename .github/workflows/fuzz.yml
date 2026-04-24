@@ -1,0 +1,142 @@
+name: fuzz
+
+on:
+  workflow_dispatch:
+    inputs:
+      fuzz_target:
+        description: Fuzz target executable name
+        required: true
+        default: zcore_fuzz_utf8
+        type: string
+      max_total_time:
+        description: libFuzzer max_total_time in seconds (used when runs is empty)
+        required: true
+        default: "120"
+        type: string
+      runs:
+        description: Optional fixed run count (overrides max_total_time when set)
+        required: false
+        default: ""
+        type: string
+      sanitizer_set:
+        description: Sanitizer set passed to ZCORE_FUZZ_SANITIZERS
+        required: true
+        default: fuzzer,address,undefined
+        type: string
+      reuse_previous_corpus:
+        description: Reuse latest saved corpus artifact for this target
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fuzz:
+    name: Manual Fuzz Run (Ubuntu/Clang)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install fuzz toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang
+
+      - name: Configure fuzz build
+        run: >
+          cmake -S . -B build-fuzz-ci -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_CXX_COMPILER=clang++
+          -DZCORE_BUILD_TESTS=OFF
+          -DZCORE_BUILD_BENCHMARKS=OFF
+          -DZCORE_BUILD_DOCS=OFF
+          -DZCORE_BUILD_FUZZERS=ON
+          -DZCORE_FUZZ_SANITIZERS=${{ inputs.sanitizer_set }}
+
+      - name: Build fuzz target
+        run: cmake --build build-fuzz-ci --target ${{ inputs.fuzz_target }} --parallel
+
+      - name: Find latest corpus artifact
+        if: ${{ inputs.reuse_previous_corpus }}
+        id: find_corpus
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactName = `fuzz-corpus-${{ inputs.fuzz_target }}`;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const latest = artifacts
+              .filter((artifact) => artifact.name === artifactName && !artifact.expired)
+              .sort((lhs, rhs) => new Date(rhs.created_at) - new Date(lhs.created_at))[0];
+            if (latest) {
+              core.info(`Restoring corpus artifact ${latest.id} (${latest.created_at})`);
+              core.setOutput("artifact_id", String(latest.id));
+            } else {
+              core.info(`No corpus artifact found for ${artifactName}; starting empty`);
+            }
+
+      - name: Restore previous corpus
+        if: ${{ inputs.reuse_previous_corpus && steps.find_corpus.outputs.artifact_id != '' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p fuzz-corpus restored-corpus
+          curl -L \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/${{ steps.find_corpus.outputs.artifact_id }}/zip" \
+            -o restored-corpus.zip
+          unzip -q restored-corpus.zip -d restored-corpus
+          if [[ -d restored-corpus/fuzz-corpus ]]; then
+            cp -a restored-corpus/fuzz-corpus/. fuzz-corpus/
+          else
+            cp -a restored-corpus/. fuzz-corpus/
+          fi
+
+      - name: Run fuzz target
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          set -euo pipefail
+          mkdir -p fuzz-corpus
+          fuzz_bin="./build-fuzz-ci/fuzz/${{ inputs.fuzz_target }}"
+          if [[ ! -x "${fuzz_bin}" ]]; then
+            echo "Missing fuzz target executable: ${fuzz_bin}" >&2
+            exit 2
+          fi
+
+          args=(fuzz-corpus -print_final_stats=1)
+          if [[ -n "${{ inputs.runs }}" ]]; then
+            args+=(-runs=${{ inputs.runs }})
+          else
+            args+=(-max_total_time=${{ inputs.max_total_time }})
+          fi
+
+          "${fuzz_bin}" "${args[@]}" 2>&1 | tee fuzz-run.log
+
+      - name: Upload fuzz log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-log-${{ github.run_id }}
+          path: fuzz-run.log
+          if-no-files-found: warn
+
+      - name: Upload fuzz corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus-${{ inputs.fuzz_target }}
+          path: fuzz-corpus/
+          if-no-files-found: warn
