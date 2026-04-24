@@ -8,6 +8,7 @@
 
 - Dynamic storage is allocated only through the bound `Allocator`.
 - `Read(ByteSpanMut)` returns bytes read (`0` allowed), or propagated upstream/allocator error.
+- When upstream failure occurs after some bytes were produced in the same call, `Read` returns the produced byte count and defers error reporting to a later call.
 - `capacity = 0` disables buffering and forwards reads directly to upstream `Reader`.
 - Buffered unread bytes are observable via `BufferedSize()` and discardable with `ClearBuffer()`.
 - No implicit synchronization.

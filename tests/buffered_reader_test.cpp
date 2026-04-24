@@ -235,4 +235,54 @@ TEST(BufferedReaderTest, ReadPropagatesUpstreamErrors) {
       static_cast<zcore::i32>(zcore::IoErrorCode::UNSUPPORTED_OPERATION));
 }
 
+TEST(BufferedReaderTest, ReadReturnsPartialProgressOnDirectPathBeforeError) {
+  TrackingAllocator allocator;
+  const std::array<zcore::Byte, 4U> source{
+      static_cast<zcore::Byte>(0x31U),
+      static_cast<zcore::Byte>(0x32U),
+      static_cast<zcore::Byte>(0x33U),
+      static_cast<zcore::Byte>(0x34U),
+  };
+  ChunkedReader sourceReader(zcore::ByteSpan(source), 1U, true, 1);
+  zcore::BufferedReader reader(sourceReader, allocator, 4U);
+
+  std::array<zcore::Byte, 8U> destination{};
+  auto readResult = reader.Read(zcore::ByteSpanMut(destination));
+  ASSERT_TRUE(readResult.HasValue());
+  EXPECT_EQ(readResult.Value(), 1U);
+  EXPECT_EQ(ByteValue(destination[0]), 0x31U);
+
+  auto nextRead = reader.Read(zcore::ByteSpanMut(destination));
+  ASSERT_TRUE(nextRead.HasError());
+  EXPECT_EQ(nextRead.Error().code.domain.id, zcore::kIoErrorDomain.id);
+}
+
+TEST(BufferedReaderTest, ReadReturnsPartialProgressFromBufferedDataBeforeRefillError) {
+  TrackingAllocator allocator;
+  const std::array<zcore::Byte, 6U> source{
+      static_cast<zcore::Byte>(0x41U),
+      static_cast<zcore::Byte>(0x42U),
+      static_cast<zcore::Byte>(0x43U),
+      static_cast<zcore::Byte>(0x44U),
+      static_cast<zcore::Byte>(0x45U),
+      static_cast<zcore::Byte>(0x46U),
+  };
+  ChunkedReader sourceReader(zcore::ByteSpan(source), 4U, true, 1);
+  zcore::BufferedReader reader(sourceReader, allocator, 4U);
+
+  std::array<zcore::Byte, 2U> first{};
+  auto firstRead = reader.Read(zcore::ByteSpanMut(first));
+  ASSERT_TRUE(firstRead.HasValue());
+  EXPECT_EQ(firstRead.Value(), 2U);
+  EXPECT_EQ(ByteValue(first[0]), 0x41U);
+  EXPECT_EQ(ByteValue(first[1]), 0x42U);
+
+  std::array<zcore::Byte, 5U> second{};
+  auto secondRead = reader.Read(zcore::ByteSpanMut(second));
+  ASSERT_TRUE(secondRead.HasValue());
+  EXPECT_EQ(secondRead.Value(), 2U);
+  EXPECT_EQ(ByteValue(second[0]), 0x43U);
+  EXPECT_EQ(ByteValue(second[1]), 0x44U);
+}
+
 }  // namespace

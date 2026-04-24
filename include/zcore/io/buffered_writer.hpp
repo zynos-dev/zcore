@@ -89,6 +89,9 @@ public:
                 const ByteSpan direct = ByteSpan::FromRawUnchecked(source.Data() + totalWritten, remaining);
                 auto directResult = Sink_->Write(direct);
                 if (directResult.HasError()) {
+                    if (totalWritten > 0U) {
+                        return Result<usize, Error>::Success(totalWritten);
+                    }
                     return Result<usize, Error>::Failure(directResult.Error());
                 }
                 totalWritten += directResult.Value();
@@ -100,6 +103,9 @@ public:
 
             Status ensureStatus = EnsureBufferStorage();
             if (ensureStatus.HasError()) {
+                if (totalWritten > 0U) {
+                    return Result<usize, Error>::Success(totalWritten);
+                }
                 return Result<usize, Error>::Failure(ensureStatus.Error());
             }
 
@@ -107,6 +113,9 @@ public:
             if (available == 0U) {
                 Status flushStatus = FlushBuffer();
                 if (flushStatus.HasError()) {
+                    if (totalWritten > 0U) {
+                        return Result<usize, Error>::Success(totalWritten);
+                    }
                     return Result<usize, Error>::Failure(flushStatus.Error());
                 }
                 continue;
@@ -116,6 +125,9 @@ public:
             const ByteSpan chunk = ByteSpan::FromRawUnchecked(source.Data() + totalWritten, toCopy);
             Status appendStatus = Buffer_.TryAppend(chunk);
             if (appendStatus.HasError()) {
+                if (totalWritten > 0U) {
+                    return Result<usize, Error>::Success(totalWritten);
+                }
                 return Result<usize, Error>::Failure(appendStatus.Error());
             }
             totalWritten += toCopy;
@@ -123,6 +135,9 @@ public:
             if (Buffer_.Size() == Capacity_) {
                 Status flushStatus = FlushBuffer();
                 if (flushStatus.HasError()) {
+                    if (totalWritten > 0U) {
+                        return Result<usize, Error>::Success(totalWritten);
+                    }
                     return Result<usize, Error>::Failure(flushStatus.Error());
                 }
             }
@@ -159,23 +174,48 @@ private:
             return OkStatus();
         }
 
+        const usize initialSize = Buffer_.Size();
         usize written = 0U;
-        while (written < Buffer_.Size()) {
-            const usize remaining = Buffer_.Size() - written;
+        while (written < initialSize) {
+            const usize remaining = initialSize - written;
             const ByteSpan pending = ByteSpan::FromRawUnchecked(Buffer_.Data() + written, remaining);
             auto writeResult = Sink_->Write(pending);
             if (writeResult.HasError()) {
+                ConsumeBufferedPrefix(written);
                 return ErrorStatus(writeResult.Error());
             }
             if (writeResult.Value() == 0U) {
+                ConsumeBufferedPrefix(written);
                 return ErrorStatus(
                         MakeIoError(IoErrorCode::END_OF_STREAM, "write", "upstream writer returned zero during buffered flush"));
             }
             written += writeResult.Value();
         }
 
-        Buffer_.Clear();
+        ConsumeBufferedPrefix(initialSize);
         return OkStatus();
+    }
+
+    void ConsumeBufferedPrefix(usize count) noexcept
+    {
+        if (count == 0U) {
+            return;
+        }
+
+        const usize size = Buffer_.Size();
+        if (count >= size) {
+            Buffer_.Clear();
+            return;
+        }
+
+        const usize remaining = size - count;
+        for (usize index = 0U; index < remaining; ++index) {
+            Buffer_[index] = Buffer_[count + index];
+        }
+        const Status resizeStatus = Buffer_.TryResize(remaining);
+        if (resizeStatus.HasError()) {
+            Buffer_.Clear();
+        }
     }
 
     Writer* Sink_;
