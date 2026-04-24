@@ -42,13 +42,13 @@ TEST(SliceTest, DefaultConstructedSliceIsEmpty) {
 }
 
 TEST(SliceTest, ConstructsFromArrayAndSpan) {
-  int values[]{1, 2, 3};
+  const std::array values{1, 2, 3};
   const zcore::Slice<int> fromArray(values);
   ASSERT_EQ(fromArray.Size(), 3U);
   EXPECT_EQ(fromArray[0], 1);
   EXPECT_EQ(fromArray[2], 3);
 
-  std::span<const int> view(values);
+  const std::span view(values);
   const zcore::Slice<int> fromSpan(view);
   EXPECT_EQ(fromSpan.Size(), 3U);
 }
@@ -63,8 +63,8 @@ TEST(SliceTest, TryFromRawRejectsNullNonZeroRanges) {
 }
 
 TEST(SliceTest, SubsliceFirstLastAreBoundsChecked) {
-  const int values[]{10, 20, 30, 40};
-  zcore::Slice<int> slice(values);
+  const std::array values{10, 20, 30, 40};
+  const zcore::Slice<int> slice(values);
 
   auto first = slice.First(2U);
   ASSERT_TRUE(first.HasValue());
@@ -84,8 +84,8 @@ TEST(SliceTest, SubsliceFirstLastAreBoundsChecked) {
 }
 
 TEST(SliceMutTest, MutationsReflectInBackingStorage) {
-  int values[]{3, 4, 5};  // NOLINT(misc-const-correctness)
-  zcore::SliceMut<int> mutableSlice(values);
+  std::array values{3, 4, 5};
+  const zcore::SliceMut<int> mutableSlice(values);
   mutableSlice[1] = 42;
 
   EXPECT_EQ(values[1], 42);
@@ -95,7 +95,7 @@ TEST(SliceMutTest, MutationsReflectInBackingStorage) {
 }
 
 TEST(SliceMutTest, RemovePrefixAndSuffixAdjustView) {
-  int values[]{1, 2, 3, 4, 5};  // NOLINT(misc-const-correctness)
+  std::array values{1, 2, 3, 4, 5};
   zcore::SliceMut<int> mutableSlice(values);
 
   EXPECT_TRUE(mutableSlice.RemovePrefix(1U));
@@ -108,9 +108,9 @@ TEST(SliceMutTest, RemovePrefixAndSuffixAdjustView) {
 }
 
 TEST(SliceMutTest, ConvertsToConstSlice) {
-  int values[]{9, 8};  // NOLINT(misc-const-correctness)
-  zcore::SliceMut<int> mutableSlice(values);
-  zcore::Slice<const int> constSlice = mutableSlice;
+  std::array values{9, 8};
+  const zcore::SliceMut<int> mutableSlice(values);
+  const zcore::Slice<const int> constSlice = mutableSlice;
 
   EXPECT_EQ(constSlice.Size(), 2U);
   EXPECT_EQ(constSlice[0], 9);
@@ -118,10 +118,10 @@ TEST(SliceMutTest, ConvertsToConstSlice) {
 
 TEST(SliceByteViewTest, ByteViewsMatchObjectRepresentationSize) {
   std::array<std::uint32_t, 3> values{1U, 2U, 3U};
-  zcore::SliceMut<std::uint32_t> mutableSlice(values);
+  const zcore::SliceMut<std::uint32_t> mutableSlice(values);
 
-  zcore::ByteSpan bytes = zcore::AsBytes(mutableSlice);
-  zcore::ByteSpanMut writableBytes = zcore::AsWritableBytes(mutableSlice);
+  const zcore::ByteSpan bytes = zcore::AsBytes(mutableSlice);
+  const zcore::ByteSpanMut writableBytes = zcore::AsWritableBytes(mutableSlice);
 
   EXPECT_EQ(bytes.Size(), values.size() * sizeof(std::uint32_t));
   EXPECT_EQ(writableBytes.Size(), values.size() * sizeof(std::uint32_t));
